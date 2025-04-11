@@ -27,7 +27,9 @@ const Profile = () => {
           <button onClick={handleBack} className="text-gray-700">
             <ArrowLeft className="h-6 w-6" />
           </button>
-          <h2 className="text-lg font-semibold ml-4">Seu Perfil</h2>
+          <h2 className="text-lg font-semibold ml-4">
+            {authUser ? `@${authUser.username}` : 'Perfil'}
+          </h2>
           <button className="ml-auto text-gray-700">
             <Settings className="h-5 w-5" />
           </button>
@@ -91,11 +93,14 @@ const Profile = () => {
           </div>
         ) : (
           <div className="mt-4">
-            <p className="font-semibold">{authUser.name}</p>
-            <p className="text-sm text-gray-500">{authUser.bio || 'Adicione uma bio aqui...'}</p>
-            {authUser.website && (
-              <p className="text-sm text-secondary">{authUser.website}</p>
-            )}
+            <div className="flex flex-col gap-0.5">
+              <p className="font-semibold">{authUser.name}</p>
+              <p className="text-sm text-muted-foreground font-medium">@{authUser.username}</p>
+              <p className="text-sm text-gray-500 mt-1">{authUser.bio || 'Adicione uma bio aqui...'}</p>
+              {authUser.website && (
+                <p className="text-sm text-secondary">{authUser.website}</p>
+              )}
+            </div>
           </div>
         )}
         
