@@ -73,16 +73,12 @@ const CreateAd = () => {
         viewsCount: 0
       };
       
-      await createAd(adData);
-        toast({
-          title: "Anúncio criado",
-          description: "Seu anúncio foi publicado com sucesso!"
-        });
-        setLocation("/profile");
-      } else {
-        const error = await response.json();
-        throw new Error(error.message || "Erro ao criar anúncio");
-      }
+      const response = await createAd(adData);
+      toast({
+        title: "Anúncio criado",
+        description: "Seu anúncio foi publicado com sucesso!"
+      });
+      setLocation("/profile");
     } catch (error: any) {
       toast({
         title: "Erro",
