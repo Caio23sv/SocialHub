@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Post } from "@shared/schema";
+import { Post, Product } from "@shared/schema";
 import { useAuth } from "@/lib/AuthContext";
-import { ArrowLeft, Settings, Grid, Bookmark, Tag, Image } from "lucide-react";
+import { ArrowLeft, Settings, Grid, ShoppingBag, Package, Image } from "lucide-react";
+import SettingsMenu from "@/components/modals/SettingsMenu";
 
 const Profile = () => {
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'tagged'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'products'>('posts');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { user: authUser, isLoading: isAuthLoading } = useAuth();
   
   // Get user posts (usando o id do usuário autenticado)
@@ -16,8 +18,18 @@ const Profile = () => {
     enabled: !!authUser?.id,
   });
   
+  // Get user products
+  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
+    queryKey: [`/api/users/${authUser?.id}/products`],
+    enabled: !!authUser?.id && authUser?.isSeller === true,
+  });
+  
   const handleBack = () => {
     setLocation("/");
+  };
+  
+  const toggleSettings = () => {
+    setIsSettingsOpen(!isSettingsOpen);
   };
   
   return (
@@ -30,7 +42,7 @@ const Profile = () => {
           <h2 className="text-lg font-semibold ml-4">
             {authUser ? `@${authUser.username}` : 'Perfil'}
           </h2>
-          <button className="ml-auto text-gray-700">
+          <button onClick={toggleSettings} className="ml-auto text-gray-700">
             <Settings className="h-5 w-5" />
           </button>
         </div>
@@ -122,16 +134,10 @@ const Profile = () => {
               <Grid className="h-4 w-4 mr-1" /> Posts
             </button>
             <button 
-              className={`px-4 py-2 ${activeTab === 'saved' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'} font-medium flex items-center`}
-              onClick={() => setActiveTab('saved')}
+              className={`px-4 py-2 ${activeTab === 'products' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'} font-medium flex items-center`}
+              onClick={() => setActiveTab('products')}
             >
-              <Bookmark className="h-4 w-4 mr-1" /> Salvos
-            </button>
-            <button 
-              className={`px-4 py-2 ${activeTab === 'tagged' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'} font-medium flex items-center`}
-              onClick={() => setActiveTab('tagged')}
-            >
-              <Tag className="h-4 w-4 mr-1" /> Marcados
+              <ShoppingBag className="h-4 w-4 mr-1" /> Meus Produtos
             </button>
           </div>
           
@@ -162,25 +168,48 @@ const Profile = () => {
             </div>
           )}
           
-          {activeTab === 'saved' && (
-            <div className="py-10 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                <Bookmark className="h-8 w-8 text-gray-400" />
-              </div>
-              <p className="text-gray-500">Nenhum item salvo</p>
-            </div>
-          )}
-          
-          {activeTab === 'tagged' && (
-            <div className="py-10 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                <Tag className="h-8 w-8 text-gray-400" />
-              </div>
-              <p className="text-gray-500">Nenhuma foto marcada</p>
+          {activeTab === 'products' && (
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              {productsLoading ? (
+                // Products grid skeleton
+                Array(4).fill(0).map((_, i) => (
+                  <div key={i} className="rounded-lg overflow-hidden bg-gray-200 animate-pulse h-48"></div>
+                ))
+              ) : products && products.length > 0 ? (
+                products.map(product => (
+                  <div key={product.id} className="border rounded-lg overflow-hidden">
+                    <img
+                      src={product.imageUrl}
+                      alt={product.title}
+                      className="w-full h-32 object-cover"
+                    />
+                    <div className="p-3">
+                      <p className="font-semibold truncate">{product.title}</p>
+                      <p className="text-primary font-bold">R$ {product.price}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-2 py-10 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                    <Package className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500">Nenhum produto cadastrado</p>
+                  {!authUser?.isSeller && 
+                    <button className="mt-4 bg-primary text-white px-4 py-2 rounded-lg font-medium">
+                      Torne-se um vendedor
+                    </button>
+                  }
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
+      
+      {isSettingsOpen && (
+        <SettingsMenu isOpen={isSettingsOpen} onClose={toggleSettings} />
+      )}
     </>
   );
 };

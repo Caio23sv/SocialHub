@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useLocation } from 'wouter';
-import { Globe } from 'lucide-react';
+import blkLogo from '@/assets/blk-logo.png';
 
 export default function Welcome() {
   const [, navigate] = useLocation();
@@ -24,10 +24,16 @@ export default function Welcome() {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md mx-auto text-center space-y-6">
         <div className="mb-8">
-          <div className="h-20 w-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Globe className="h-10 w-10 text-primary" />
+          <div className="h-32 w-32 mx-auto mb-6 flex items-center justify-center">
+            <img 
+              src={blkLogo} 
+              alt="BLK Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
-          <h1 className="text-3xl font-bold">Bem-vindo</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-500 via-indigo-600 to-red-500 bg-clip-text text-transparent">
+            Bem-vindo ao BLK
+          </h1>
           <p className="text-muted-foreground mt-2">
             Selecione seu idioma para continuar
           </p>
@@ -56,7 +62,7 @@ export default function Welcome() {
           ))}
         </div>
         
-        <Button className="w-full mt-8" onClick={handleContinue}>
+        <Button className="w-full mt-8 bg-gradient-to-r from-blue-500 via-indigo-600 to-red-500 hover:from-blue-600 hover:via-indigo-700 hover:to-red-600" onClick={handleContinue}>
           Continuar
         </Button>
       </div>
