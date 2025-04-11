@@ -1,24 +1,19 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { User, Post } from "@shared/schema";
+import { Post } from "@shared/schema";
+import { useAuth } from "@/lib/AuthContext";
+import { ArrowLeft, Settings, Grid, Bookmark, Tag, Image } from "lucide-react";
 
 const Profile = () => {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'tagged'>('posts');
+  const { user: authUser, isLoading: isAuthLoading } = useAuth();
   
-  // Current user ID (in a real app, this would come from authentication)
-  const currentUserId = 6; // Rafael Costa's ID
-  
-  // Get user data
-  const { data: user, isLoading: userLoading } = useQuery<User>({
-    queryKey: [`/api/users/${currentUserId}`],
-  });
-  
-  // Get user posts
+  // Get user posts (usando o id do usuário autenticado)
   const { data: posts, isLoading: postsLoading } = useQuery<Post[]>({
-    queryKey: [`/api/users/${currentUserId}/posts`],
-    enabled: !!user,
+    queryKey: [`/api/users/${authUser?.id}/posts`],
+    enabled: !!authUser?.id,
   });
   
   const handleBack = () => {
@@ -30,17 +25,17 @@ const Profile = () => {
       <div className="p-4 border-b border-gray-200 sticky top-0 bg-white z-10">
         <div className="flex items-center">
           <button onClick={handleBack} className="text-gray-700">
-            <i className="ri-arrow-left-line text-2xl"></i>
+            <ArrowLeft className="h-6 w-6" />
           </button>
           <h2 className="text-lg font-semibold ml-4">Seu Perfil</h2>
           <button className="ml-auto text-gray-700">
-            <i className="ri-settings-3-line text-2xl"></i>
+            <Settings className="h-5 w-5" />
           </button>
         </div>
       </div>
       
       <div className="p-4 pb-20">
-        {userLoading ? (
+        {!authUser ? (
           // User info skeleton
           <div className="flex items-center">
             <div className="w-20 h-20 rounded-full bg-gray-200 animate-pulse"></div>
@@ -59,34 +54,34 @@ const Profile = () => {
               </div>
             </div>
           </div>
-        ) : user ? (
+        ) : (
           <div className="flex items-center">
             <img
-              src={user.avatar}
+              src={authUser.avatar || 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80'}
               alt="Your profile"
               className="w-20 h-20 rounded-full object-cover border-2 border-primary"
             />
             
             <div className="ml-6 flex space-x-4">
               <div className="text-center">
-                <p className="font-semibold">{user.postsCount}</p>
+                <p className="font-semibold">{authUser.postsCount || 0}</p>
                 <p className="text-sm text-gray-500">Posts</p>
               </div>
               
               <div className="text-center">
-                <p className="font-semibold">{user.followersCount}</p>
+                <p className="font-semibold">{authUser.followersCount || 0}</p>
                 <p className="text-sm text-gray-500">Seguidores</p>
               </div>
               
               <div className="text-center">
-                <p className="font-semibold">{user.followingCount}</p>
+                <p className="font-semibold">{authUser.followingCount || 0}</p>
                 <p className="text-sm text-gray-500">Seguindo</p>
               </div>
             </div>
           </div>
-        ) : null}
+        )}
         
-        {userLoading ? (
+        {!authUser ? (
           // Bio skeleton
           <div className="mt-4">
             <div className="w-32 h-4 bg-gray-200 rounded animate-pulse"></div>
@@ -94,15 +89,15 @@ const Profile = () => {
             <div className="w-3/4 h-3 bg-gray-200 rounded animate-pulse mt-1"></div>
             <div className="w-1/2 h-3 bg-gray-200 rounded animate-pulse mt-1"></div>
           </div>
-        ) : user ? (
+        ) : (
           <div className="mt-4">
-            <p className="font-semibold">{user.name}</p>
-            <p className="text-sm text-gray-500">{user.bio}</p>
-            {user.website && (
-              <p className="text-sm text-secondary">{user.website}</p>
+            <p className="font-semibold">{authUser.name}</p>
+            <p className="text-sm text-gray-500">{authUser.bio || 'Adicione uma bio aqui...'}</p>
+            {authUser.website && (
+              <p className="text-sm text-secondary">{authUser.website}</p>
             )}
           </div>
-        ) : null}
+        )}
         
         <div className="mt-4 flex space-x-2">
           <button className="flex-1 bg-gray-100 text-gray-700 font-semibold py-1.5 px-3 rounded-lg">
@@ -116,22 +111,22 @@ const Profile = () => {
         <div className="mt-6 border-t border-gray-200 pt-4">
           <div className="flex justify-around">
             <button 
-              className={`px-4 py-2 ${activeTab === 'posts' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'} font-medium`}
+              className={`px-4 py-2 ${activeTab === 'posts' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'} font-medium flex items-center`}
               onClick={() => setActiveTab('posts')}
             >
-              <i className="ri-grid-line mr-1"></i> Posts
+              <Grid className="h-4 w-4 mr-1" /> Posts
             </button>
             <button 
-              className={`px-4 py-2 ${activeTab === 'saved' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'} font-medium`}
+              className={`px-4 py-2 ${activeTab === 'saved' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'} font-medium flex items-center`}
               onClick={() => setActiveTab('saved')}
             >
-              <i className="ri-bookmark-line mr-1"></i> Salvos
+              <Bookmark className="h-4 w-4 mr-1" /> Salvos
             </button>
             <button 
-              className={`px-4 py-2 ${activeTab === 'tagged' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'} font-medium`}
+              className={`px-4 py-2 ${activeTab === 'tagged' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'} font-medium flex items-center`}
               onClick={() => setActiveTab('tagged')}
             >
-              <i className="ri-user-heart-line mr-1"></i> Marcados
+              <Tag className="h-4 w-4 mr-1" /> Marcados
             </button>
           </div>
           
@@ -154,7 +149,7 @@ const Profile = () => {
               ) : (
                 <div className="col-span-3 py-10 text-center">
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                    <i className="ri-image-line text-3xl text-gray-400"></i>
+                    <Image className="h-8 w-8 text-gray-400" />
                   </div>
                   <p className="text-gray-500">Nenhum post ainda</p>
                 </div>
@@ -165,7 +160,7 @@ const Profile = () => {
           {activeTab === 'saved' && (
             <div className="py-10 text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                <i className="ri-bookmark-line text-3xl text-gray-400"></i>
+                <Bookmark className="h-8 w-8 text-gray-400" />
               </div>
               <p className="text-gray-500">Nenhum item salvo</p>
             </div>
@@ -174,7 +169,7 @@ const Profile = () => {
           {activeTab === 'tagged' && (
             <div className="py-10 text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                <i className="ri-user-heart-line text-3xl text-gray-400"></i>
+                <Tag className="h-8 w-8 text-gray-400" />
               </div>
               <p className="text-gray-500">Nenhuma foto marcada</p>
             </div>
