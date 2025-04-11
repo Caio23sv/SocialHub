@@ -1,0 +1,24 @@
+total 928
+drwxr-xr-x 1 runner runner    478 Apr 11 21:27 .
+drwxrwxrwx 1 runner runner     54 Apr 11 21:03 ..
+drwxr-xr-x 1 runner runner     46 Apr 11 21:20 attached_assets
+drwxr-xr-x 1 runner runner     32 Apr 11 21:24 .cache
+drwxr-xr-x 1 runner runner     26 Apr 11 20:33 client
+-rw-r--r-- 1 runner runner    325 Apr 11 20:30 drizzle.config.ts
+-rw-r--r-- 1 runner runner      0 Apr 11 21:27 estrutura_projeto.txt
+-rw-r--r-- 1 runner runner 512776 Apr 11 21:25 generated-icon.png
+drwxr-xr-x 1 runner runner    144 Apr 11 21:25 .git
+-rw-r--r-- 1 runner runner     67 Apr 11 20:30 .gitignore
+drwxr-xr-x 1 runner runner     10 Apr 11 20:26 .local
+drwxr-xr-x 1 runner runner   9022 Apr 11 20:45 node_modules
+-rw-r--r-- 1 runner runner   3655 Apr 11 20:45 package.json
+-rw-r--r-- 1 runner runner 396743 Apr 11 20:45 package-lock.json
+-rw-r--r-- 1 runner runner     80 Apr 11 20:30 postcss.config.js
+-rw-r--r-- 1 runner runner    803 Apr 11 20:36 .replit
+drwxr-xr-x 1 runner runner     68 Apr 11 20:44 server
+drwxr-xr-x 1 runner runner     18 Apr 11 20:38 shared
+-rw-r--r-- 1 runner runner   2787 Apr 11 20:30 tailwind.config.ts
+-rw-r--r-- 1 runner runner    108 Apr 11 20:33 theme.json
+-rw-r--r-- 1 runner runner    657 Apr 11 20:30 tsconfig.json
+drwxr-xr-x 1 runner runner     20 Apr 11 20:45 .upm
+-rw-r--r-- 1 runner runner    978 Apr 11 20:30 vite.config.ts

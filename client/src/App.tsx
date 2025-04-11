@@ -10,6 +10,7 @@ import Notifications from "@/pages/notifications";
 import Profile from "@/pages/profile";
 import Search from "@/pages/search";
 import CreatePost from "@/pages/create-post";
+import CreateAd from "@/pages/create-ad";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
 import Welcome from "@/pages/welcome";
@@ -78,6 +79,7 @@ function Router() {
             <Route path="/profile" component={Profile} />
             <Route path="/search" component={Search} />
             <Route path="/create" component={CreatePost} />
+            <Route path="/create-ad" component={CreateAd} />
           </>
         )}
         <Route component={NotFound} />
