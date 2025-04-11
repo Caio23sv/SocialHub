@@ -1,12 +1,16 @@
 import {
-  users, posts, likes, comments, follows, notifications,
+  users, posts, likes, comments, follows, notifications, products, orders, reviews,
   type User, type InsertUser,
   type Post, type InsertPost,
   type Like, type InsertLike,
   type Comment, type InsertComment,
   type Follow, type InsertFollow,
   type Notification, type InsertNotification,
-  type PostWithUser, type NotificationWithUsers
+  type Product, type InsertProduct,
+  type Order, type InsertOrder,
+  type Review, type InsertReview,
+  type PostWithUser, type NotificationWithUsers,
+  type ProductWithSeller, type ProductWithReviews
 } from "@shared/schema";
 
 export interface IStorage {
@@ -15,6 +19,8 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
+  updateUserSellerStatus(id: number, isSeller: boolean): Promise<User | undefined>;
+  updateUserStripeInfo(id: number, stripeCustomerId: string, stripeAccountId?: string): Promise<User | undefined>;
   
   // Post operations
   getPost(id: number): Promise<Post | undefined>;
@@ -44,6 +50,31 @@ export interface IStorage {
   getUserNotifications(userId: number): Promise<NotificationWithUsers[]>;
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationsAsRead(userId: number): Promise<boolean>;
+  
+  // Product operations
+  getProduct(id: number): Promise<Product | undefined>;
+  getProductWithSeller(id: number): Promise<ProductWithSeller | undefined>;
+  getProductWithReviews(id: number): Promise<ProductWithReviews | undefined>;
+  getSellerProducts(sellerId: number): Promise<Product[]>;
+  getAllProducts(category?: string, type?: string): Promise<ProductWithSeller[]>;
+  getFeaturedProducts(): Promise<ProductWithSeller[]>;
+  createProduct(product: InsertProduct): Promise<Product>;
+  updateProduct(id: number, productData: Partial<InsertProduct>): Promise<Product | undefined>;
+  deleteProduct(id: number): Promise<boolean>;
+  
+  // Order operations
+  getOrder(id: number): Promise<Order | undefined>;
+  getUserOrders(userId: number): Promise<Order[]>;
+  getSellerOrders(sellerId: number): Promise<Order[]>;
+  createOrder(order: InsertOrder): Promise<Order>;
+  updateOrderStatus(id: number, status: string): Promise<Order | undefined>;
+  
+  // Review operations
+  getProductReviews(productId: number): Promise<Review[]>;
+  getUserReview(userId: number, productId: number): Promise<Review | undefined>;
+  createReview(review: InsertReview): Promise<Review>;
+  updateReview(id: number, reviewData: Partial<InsertReview>): Promise<Review | undefined>;
+  deleteReview(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -53,6 +84,9 @@ export class MemStorage implements IStorage {
   private comments: Map<number, Comment>;
   private follows: Map<number, Follow>;
   private notifications: Map<number, Notification>;
+  private products: Map<number, Product>;
+  private orders: Map<number, Order>;
+  private reviews: Map<number, Review>;
   
   private userIdCounter: number;
   private postIdCounter: number;
@@ -60,6 +94,9 @@ export class MemStorage implements IStorage {
   private commentIdCounter: number;
   private followIdCounter: number;
   private notificationIdCounter: number;
+  private productIdCounter: number;
+  private orderIdCounter: number;
+  private reviewIdCounter: number;
 
   constructor() {
     this.users = new Map();
@@ -68,6 +105,9 @@ export class MemStorage implements IStorage {
     this.comments = new Map();
     this.follows = new Map();
     this.notifications = new Map();
+    this.products = new Map();
+    this.orders = new Map();
+    this.reviews = new Map();
     
     this.userIdCounter = 1;
     this.postIdCounter = 1;
@@ -75,6 +115,9 @@ export class MemStorage implements IStorage {
     this.commentIdCounter = 1;
     this.followIdCounter = 1;
     this.notificationIdCounter = 1;
+    this.productIdCounter = 1;
+    this.orderIdCounter = 1;
+    this.reviewIdCounter = 1;
     
     // Initialize with some test data
     this.initializeTestData();
@@ -231,6 +274,28 @@ export class MemStorage implements IStorage {
     if (!user) return undefined;
     
     const updatedUser = { ...user, ...userData };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+  
+  async updateUserSellerStatus(id: number, isSeller: boolean): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updatedUser = { ...user, isSeller };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+  
+  async updateUserStripeInfo(id: number, stripeCustomerId: string, stripeAccountId?: string): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updatedUser = { 
+      ...user, 
+      stripeCustomerId,
+      ...(stripeAccountId ? { stripeAccountId } : {})
+    };
     this.users.set(id, updatedUser);
     return updatedUser;
   }
@@ -591,6 +656,268 @@ export class MemStorage implements IStorage {
       });
     }
     
+    return true;
+  }
+  
+  // Product operations
+  async getProduct(id: number): Promise<Product | undefined> {
+    return this.products.get(id);
+  }
+  
+  async getProductWithSeller(id: number): Promise<ProductWithSeller | undefined> {
+    const product = this.products.get(id);
+    if (!product) return undefined;
+    
+    const seller = this.users.get(product.sellerId);
+    if (!seller) return undefined;
+    
+    return { ...product, seller };
+  }
+  
+  async getProductWithReviews(id: number): Promise<ProductWithReviews | undefined> {
+    const productWithSeller = await this.getProductWithSeller(id);
+    if (!productWithSeller) return undefined;
+    
+    const productReviews = await this.getProductReviews(id);
+    const reviewsWithUsers: (Review & { user: User })[] = [];
+    
+    for (const review of productReviews) {
+      const user = this.users.get(review.userId);
+      if (user) {
+        reviewsWithUsers.push({ ...review, user });
+      }
+    }
+    
+    return { ...productWithSeller, reviews: reviewsWithUsers };
+  }
+  
+  async getSellerProducts(sellerId: number): Promise<Product[]> {
+    return Array.from(this.products.values())
+      .filter(product => product.sellerId === sellerId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  
+  async getAllProducts(category?: string, type?: string): Promise<ProductWithSeller[]> {
+    let products = Array.from(this.products.values());
+    
+    if (category) {
+      products = products.filter(product => product.category === category);
+    }
+    
+    if (type) {
+      products = products.filter(product => product.type === type);
+    }
+    
+    const result: ProductWithSeller[] = [];
+    for (const product of products) {
+      const seller = this.users.get(product.sellerId);
+      if (seller) {
+        result.push({ ...product, seller });
+      }
+    }
+    
+    return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  
+  async getFeaturedProducts(): Promise<ProductWithSeller[]> {
+    const featuredProducts = Array.from(this.products.values())
+      .filter(product => product.featured);
+    
+    const result: ProductWithSeller[] = [];
+    for (const product of featuredProducts) {
+      const seller = this.users.get(product.sellerId);
+      if (seller) {
+        result.push({ ...product, seller });
+      }
+    }
+    
+    return result;
+  }
+  
+  async createProduct(productData: InsertProduct): Promise<Product> {
+    const id = this.productIdCounter++;
+    const now = new Date();
+    
+    const product: Product = {
+      ...productData,
+      id,
+      salesCount: 0,
+      createdAt: now,
+      updatedAt: now
+    };
+    
+    this.products.set(id, product);
+    
+    // Mark the user as a seller if not already
+    const seller = this.users.get(productData.sellerId);
+    if (seller && !seller.isSeller) {
+      this.updateUserSellerStatus(seller.id, true);
+    }
+    
+    return product;
+  }
+  
+  async updateProduct(id: number, productData: Partial<InsertProduct>): Promise<Product | undefined> {
+    const product = this.products.get(id);
+    if (!product) return undefined;
+    
+    const now = new Date();
+    const updatedProduct = { 
+      ...product, 
+      ...productData,
+      updatedAt: now
+    };
+    
+    this.products.set(id, updatedProduct);
+    return updatedProduct;
+  }
+  
+  async deleteProduct(id: number): Promise<boolean> {
+    const product = this.products.get(id);
+    if (!product) return false;
+    
+    this.products.delete(id);
+    
+    // Delete associated reviews
+    for (const [reviewId, review] of this.reviews.entries()) {
+      if (review.productId === id) {
+        this.reviews.delete(reviewId);
+      }
+    }
+    
+    return true;
+  }
+  
+  // Order operations
+  async getOrder(id: number): Promise<Order | undefined> {
+    return this.orders.get(id);
+  }
+  
+  async getUserOrders(userId: number): Promise<Order[]> {
+    return Array.from(this.orders.values())
+      .filter(order => order.userId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  
+  async getSellerOrders(sellerId: number): Promise<Order[]> {
+    const sellerProducts = Array.from(this.products.values())
+      .filter(product => product.sellerId === sellerId)
+      .map(product => product.id);
+    
+    return Array.from(this.orders.values())
+      .filter(order => sellerProducts.includes(order.productId))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  
+  async createOrder(orderData: InsertOrder): Promise<Order> {
+    const id = this.orderIdCounter++;
+    const now = new Date();
+    
+    const order: Order = {
+      ...orderData,
+      id,
+      status: 'pending',
+      createdAt: now
+    };
+    
+    this.orders.set(id, order);
+    
+    // Update product sales count
+    const product = this.products.get(orderData.productId);
+    if (product) {
+      this.products.set(product.id, {
+        ...product,
+        salesCount: product.salesCount + 1
+      });
+      
+      // Create notification for the seller
+      this.createNotification({
+        userId: product.sellerId,
+        triggeredByUserId: orderData.userId,
+        type: "purchase",
+        resourceId: product.id
+      });
+      
+      // Create notification for the buyer
+      this.createNotification({
+        userId: orderData.userId,
+        triggeredByUserId: product.sellerId,
+        type: "sale",
+        resourceId: product.id
+      });
+    }
+    
+    return order;
+  }
+  
+  async updateOrderStatus(id: number, status: string): Promise<Order | undefined> {
+    const order = this.orders.get(id);
+    if (!order) return undefined;
+    
+    const updatedOrder = { ...order, status };
+    this.orders.set(id, updatedOrder);
+    return updatedOrder;
+  }
+  
+  // Review operations
+  async getProductReviews(productId: number): Promise<Review[]> {
+    return Array.from(this.reviews.values())
+      .filter(review => review.productId === productId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  
+  async getUserReview(userId: number, productId: number): Promise<Review | undefined> {
+    return Array.from(this.reviews.values()).find(
+      review => review.userId === userId && review.productId === productId
+    );
+  }
+  
+  async createReview(reviewData: InsertReview): Promise<Review> {
+    // Check if the user already reviewed this product
+    const existingReview = await this.getUserReview(reviewData.userId, reviewData.productId);
+    if (existingReview) {
+      return this.updateReview(existingReview.id, reviewData) as Promise<Review>;
+    }
+    
+    const id = this.reviewIdCounter++;
+    const now = new Date();
+    
+    const review: Review = {
+      ...reviewData,
+      id,
+      createdAt: now
+    };
+    
+    this.reviews.set(id, review);
+    
+    // Notify the product seller
+    const product = this.products.get(reviewData.productId);
+    if (product) {
+      this.createNotification({
+        userId: product.sellerId,
+        triggeredByUserId: reviewData.userId,
+        type: "review",
+        resourceId: product.id
+      });
+    }
+    
+    return review;
+  }
+  
+  async updateReview(id: number, reviewData: Partial<InsertReview>): Promise<Review | undefined> {
+    const review = this.reviews.get(id);
+    if (!review) return undefined;
+    
+    const updatedReview = { ...review, ...reviewData };
+    this.reviews.set(id, updatedReview);
+    return updatedReview;
+  }
+  
+  async deleteReview(id: number): Promise<boolean> {
+    const review = this.reviews.get(id);
+    if (!review) return false;
+    
+    this.reviews.delete(id);
     return true;
   }
 }
