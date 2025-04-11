@@ -218,3 +218,38 @@ export function userToFirestore(user: User, firebaseUid?: string): FirestoreUser
     updatedAt: new Date()
   };
 }
+// Collection references
+const ADS_COLLECTION = 'ads';
+
+export interface FirestoreAd {
+  id: string;
+  sellerId: number;
+  title: string;
+  description: string;
+  price: number;
+  imageUrl: string;
+  category: string;
+  likesCount: number;
+  commentsCount: number;
+  viewsCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export async function createAd(adData: Omit<FirestoreAd, 'id' | 'createdAt' | 'updatedAt'>): Promise<FirestoreAd> {
+  try {
+    const adRef = doc(collection(db, ADS_COLLECTION));
+    const newAd: FirestoreAd = {
+      ...adData,
+      id: adRef.id,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    await setDoc(adRef, newAd);
+    return newAd;
+  } catch (error) {
+    console.error('Error creating ad:', error);
+    throw error;
+  }
+}

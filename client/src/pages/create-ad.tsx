@@ -60,22 +60,20 @@ const CreateAd = () => {
     setIsSubmitting(true);
     
     try {
-      // Criar produto
-      const product = {
+      // Create ad in Firebase
+      const adData = {
         sellerId: authUser.id,
         title: data.title,
         description: data.description,
         price: parseFloat(data.price),
         imageUrl: data.imageUrl,
         category: data.type,
-        type: "anúncio",
-        status: "active",
-        inventory: 1
+        likesCount: 0,
+        commentsCount: 0,
+        viewsCount: 0
       };
       
-      const response = await apiRequest("POST", "/api/products", product);
-      
-      if (response.ok) {
+      await createAd(adData);
         toast({
           title: "Anúncio criado",
           description: "Seu anúncio foi publicado com sucesso!"
