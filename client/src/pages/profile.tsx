@@ -1,0 +1,188 @@
+import { useState } from "react";
+import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { User, Post } from "@shared/schema";
+
+const Profile = () => {
+  const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'tagged'>('posts');
+  
+  // Current user ID (in a real app, this would come from authentication)
+  const currentUserId = 6; // Rafael Costa's ID
+  
+  // Get user data
+  const { data: user, isLoading: userLoading } = useQuery<User>({
+    queryKey: [`/api/users/${currentUserId}`],
+  });
+  
+  // Get user posts
+  const { data: posts, isLoading: postsLoading } = useQuery<Post[]>({
+    queryKey: [`/api/users/${currentUserId}/posts`],
+    enabled: !!user,
+  });
+  
+  const handleBack = () => {
+    setLocation("/");
+  };
+  
+  return (
+    <>
+      <div className="p-4 border-b border-gray-200 sticky top-0 bg-white z-10">
+        <div className="flex items-center">
+          <button onClick={handleBack} className="text-gray-700">
+            <i className="ri-arrow-left-line text-2xl"></i>
+          </button>
+          <h2 className="text-lg font-semibold ml-4">Seu Perfil</h2>
+          <button className="ml-auto text-gray-700">
+            <i className="ri-settings-3-line text-2xl"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div className="p-4 pb-20">
+        {userLoading ? (
+          // User info skeleton
+          <div className="flex items-center">
+            <div className="w-20 h-20 rounded-full bg-gray-200 animate-pulse"></div>
+            <div className="ml-6 flex space-x-4">
+              <div className="text-center">
+                <div className="w-10 h-4 bg-gray-200 rounded animate-pulse mx-auto"></div>
+                <div className="w-16 h-3 bg-gray-200 rounded animate-pulse mt-1"></div>
+              </div>
+              <div className="text-center">
+                <div className="w-10 h-4 bg-gray-200 rounded animate-pulse mx-auto"></div>
+                <div className="w-16 h-3 bg-gray-200 rounded animate-pulse mt-1"></div>
+              </div>
+              <div className="text-center">
+                <div className="w-10 h-4 bg-gray-200 rounded animate-pulse mx-auto"></div>
+                <div className="w-16 h-3 bg-gray-200 rounded animate-pulse mt-1"></div>
+              </div>
+            </div>
+          </div>
+        ) : user ? (
+          <div className="flex items-center">
+            <img
+              src={user.avatar}
+              alt="Your profile"
+              className="w-20 h-20 rounded-full object-cover border-2 border-primary"
+            />
+            
+            <div className="ml-6 flex space-x-4">
+              <div className="text-center">
+                <p className="font-semibold">{user.postsCount}</p>
+                <p className="text-sm text-gray-500">Posts</p>
+              </div>
+              
+              <div className="text-center">
+                <p className="font-semibold">{user.followersCount}</p>
+                <p className="text-sm text-gray-500">Seguidores</p>
+              </div>
+              
+              <div className="text-center">
+                <p className="font-semibold">{user.followingCount}</p>
+                <p className="text-sm text-gray-500">Seguindo</p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        
+        {userLoading ? (
+          // Bio skeleton
+          <div className="mt-4">
+            <div className="w-32 h-4 bg-gray-200 rounded animate-pulse"></div>
+            <div className="w-full h-3 bg-gray-200 rounded animate-pulse mt-2"></div>
+            <div className="w-3/4 h-3 bg-gray-200 rounded animate-pulse mt-1"></div>
+            <div className="w-1/2 h-3 bg-gray-200 rounded animate-pulse mt-1"></div>
+          </div>
+        ) : user ? (
+          <div className="mt-4">
+            <p className="font-semibold">{user.name}</p>
+            <p className="text-sm text-gray-500">{user.bio}</p>
+            {user.website && (
+              <p className="text-sm text-secondary">{user.website}</p>
+            )}
+          </div>
+        ) : null}
+        
+        <div className="mt-4 flex space-x-2">
+          <button className="flex-1 bg-gray-100 text-gray-700 font-semibold py-1.5 px-3 rounded-lg">
+            Editar perfil
+          </button>
+          <button className="flex-1 bg-gray-100 text-gray-700 font-semibold py-1.5 px-3 rounded-lg">
+            Compartilhar perfil
+          </button>
+        </div>
+        
+        <div className="mt-6 border-t border-gray-200 pt-4">
+          <div className="flex justify-around">
+            <button 
+              className={`px-4 py-2 ${activeTab === 'posts' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'} font-medium`}
+              onClick={() => setActiveTab('posts')}
+            >
+              <i className="ri-grid-line mr-1"></i> Posts
+            </button>
+            <button 
+              className={`px-4 py-2 ${activeTab === 'saved' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'} font-medium`}
+              onClick={() => setActiveTab('saved')}
+            >
+              <i className="ri-bookmark-line mr-1"></i> Salvos
+            </button>
+            <button 
+              className={`px-4 py-2 ${activeTab === 'tagged' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'} font-medium`}
+              onClick={() => setActiveTab('tagged')}
+            >
+              <i className="ri-user-heart-line mr-1"></i> Marcados
+            </button>
+          </div>
+          
+          {activeTab === 'posts' && (
+            <div className="grid grid-cols-3 gap-1 mt-2">
+              {postsLoading ? (
+                // Post grid skeleton
+                Array(9).fill(0).map((_, i) => (
+                  <div key={i} className="w-full aspect-square bg-gray-200 animate-pulse"></div>
+                ))
+              ) : posts && posts.length > 0 ? (
+                posts.map(post => (
+                  <img
+                    key={post.id}
+                    src={post.imageUrl}
+                    alt="Your post"
+                    className="w-full aspect-square object-cover"
+                  />
+                ))
+              ) : (
+                <div className="col-span-3 py-10 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                    <i className="ri-image-line text-3xl text-gray-400"></i>
+                  </div>
+                  <p className="text-gray-500">Nenhum post ainda</p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {activeTab === 'saved' && (
+            <div className="py-10 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                <i className="ri-bookmark-line text-3xl text-gray-400"></i>
+              </div>
+              <p className="text-gray-500">Nenhum item salvo</p>
+            </div>
+          )}
+          
+          {activeTab === 'tagged' && (
+            <div className="py-10 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                <i className="ri-user-heart-line text-3xl text-gray-400"></i>
+              </div>
+              <p className="text-gray-500">Nenhuma foto marcada</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default Profile;
