@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, varchar, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -14,6 +14,9 @@ export const users = pgTable("users", {
   followersCount: integer("followers_count").default(0),
   followingCount: integer("following_count").default(0),
   postsCount: integer("posts_count").default(0),
+  isSeller: boolean("is_seller").default(false),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeAccountId: text("stripe_account_id"),
 });
 
 export const posts = pgTable("posts", {
@@ -52,9 +55,43 @@ export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
   triggeredByUserId: integer("triggered_by_user_id").references(() => users.id),
-  type: varchar("type", { length: 50 }).notNull(), // like, comment, follow, mention
-  resourceId: integer("resource_id"), // postId or commentId depending on type
+  type: varchar("type", { length: 50 }).notNull(), // like, comment, follow, mention, purchase, sale
+  resourceId: integer("resource_id"), // postId, commentId, or productId depending on type
   read: boolean("read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const products = pgTable("products", {
+  id: serial("id").primaryKey(),
+  sellerId: integer("seller_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  imageUrl: text("image_url").notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // course, ebook, physical, service
+  category: varchar("category", { length: 50 }).notNull(), // categories like educational, fitness, etc.
+  featured: boolean("featured").default(false),
+  salesCount: integer("sales_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const orders = pgTable("orders", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  productId: integer("product_id").notNull().references(() => products.id),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, completed, failed, refunded
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const reviews = pgTable("reviews", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  productId: integer("product_id").notNull().references(() => products.id),
+  rating: integer("rating").notNull(),
+  comment: text("comment"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -94,6 +131,24 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   createdAt: true,
 });
 
+export const insertProductSchema = createInsertSchema(products).omit({
+  id: true,
+  salesCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOrderSchema = createInsertSchema(orders).omit({
+  id: true,
+  status: true,
+  createdAt: true,
+});
+
+export const insertReviewSchema = createInsertSchema(reviews).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Type definitions
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -113,6 +168,15 @@ export type Follow = typeof follows.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
 
+export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type Product = typeof products.$inferSelect;
+
+export type InsertOrder = z.infer<typeof insertOrderSchema>;
+export type Order = typeof orders.$inferSelect;
+
+export type InsertReview = z.infer<typeof insertReviewSchema>;
+export type Review = typeof reviews.$inferSelect;
+
 // Extended types for API responses
 export type PostWithUser = Post & {
   user: User;
@@ -121,4 +185,12 @@ export type PostWithUser = Post & {
 export type NotificationWithUsers = Notification & {
   triggeredByUser: User;
   post?: Post;
+};
+
+export type ProductWithSeller = Product & {
+  seller: User;
+};
+
+export type ProductWithReviews = ProductWithSeller & {
+  reviews: (Review & { user: User })[];
 };
