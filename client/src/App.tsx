@@ -1,5 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -12,14 +12,26 @@ import Search from "@/pages/search";
 import CreatePost from "@/pages/create-post";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
+import Welcome from "@/pages/welcome";
 import BottomNavigation from "@/components/ui/bottom-navigation";
 
 function Router() {
   const [location] = useLocation();
   const { user, isLoading } = useAuth();
+  const [languageSelected, setLanguageSelected] = useState<boolean>(false);
+  
+  useEffect(() => {
+    // Check if language is already selected
+    const language = localStorage.getItem('language');
+    if (language) {
+      setLanguageSelected(true);
+    }
+  }, []);
+  
   const showBottomNav = !location.includes("/notifications") && 
                         !location.includes("/login") && 
-                        !location.includes("/signup");
+                        !location.includes("/signup") &&
+                        !location.includes("/welcome");
 
   // Prefetch data if user is logged in
   useEffect(() => {
@@ -48,10 +60,13 @@ function Router() {
 
     return (
       <Switch>
-        {!user ? (
+        {!languageSelected ? (
+          <Route path="/" component={Welcome} />
+        ) : !user ? (
           <>
             <Route path="/login" component={Login} />
             <Route path="/signup" component={Signup} />
+            <Route path="/welcome" component={Welcome} />
             <Route path="/">
               <Login />
             </Route>

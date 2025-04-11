@@ -43,17 +43,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       try {
         if (firebaseUser) {
-          // Check if user already exists in Firestore
-          const firestoreUser = await getUserProfileByFirebaseUid(firebaseUser.uid);
-          
-          if (firestoreUser) {
-            // User already exists, convert to our User model
-            setUser(firestoreToUser(firestoreUser));
-          } else {
-            // User doesn't exist, create a new user in our backend
-            // Then create a profile in Firestore
-            const newUser = await createNewUser(firebaseUser);
-            setUser(newUser);
+          try {
+            // Check if user already exists in Firestore
+            const firestoreUser = await getUserProfileByFirebaseUid(firebaseUser.uid);
+            
+            if (firestoreUser) {
+              // User already exists, convert to our User model
+              setUser(firestoreToUser(firestoreUser));
+            } else {
+              // User doesn't exist, create a new user in our backend
+              // Then create a profile in Firestore
+              const newUser = await createNewUser(firebaseUser);
+              setUser(newUser);
+            }
+          } catch (firestoreError) {
+            // If there's a Firestore permission error, we can still create a temporary user
+            // with basic information from Firebase Auth
+            console.error(`Error getting user profile with Firebase UID ${firebaseUser.uid}:`, firestoreError);
+            
+            // Create a temporary user object with just the Firebase auth data
+            const tempUser: User = {
+              id: Date.now(), // Generate a temporary ID
+              username: firebaseUser.email?.split('@')[0] || `user_${Date.now()}`,
+              password: '',
+              name: firebaseUser.displayName || 'New User',
+              bio: null,
+              location: null,
+              website: null,
+              avatar: firebaseUser.photoURL || null,
+              followersCount: 0,
+              followingCount: 0,
+              postsCount: 0,
+              isSeller: false,
+              stripeCustomerId: null,
+              stripeAccountId: null
+            };
+            
+            setUser(tempUser);
+            
+            // Display a more user-friendly error
+            setError('Erro de permissão ao acessar o banco de dados. Por favor, entre em contato com o suporte.');
           }
         } else {
           setUser(null);
@@ -70,33 +99,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const createNewUser = async (firebaseUser: FirebaseUser): Promise<User> => {
+    // Create user object for our database
+    const newUser: User = {
+      id: Date.now(), // Generate a unique ID
+      username: firebaseUser.email?.split('@')[0] || `user_${Date.now()}`,
+      password: '', // We don't store passwords; Firebase handles auth
+      name: firebaseUser.displayName || 'New User',
+      bio: null,
+      location: null,
+      website: null,
+      avatar: firebaseUser.photoURL || null,
+      followersCount: 0,
+      followingCount: 0,
+      postsCount: 0,
+      isSeller: false,
+      stripeCustomerId: null,
+      stripeAccountId: null
+    };
+    
     try {
-      // Create user object for our Firestore database
-      const newUser: User = {
-        id: Date.now(), // Generate a unique ID
-        username: firebaseUser.email?.split('@')[0] || `user_${Date.now()}`,
-        password: '', // We don't store passwords; Firebase handles auth
-        name: firebaseUser.displayName || 'New User',
-        bio: null,
-        location: null,
-        website: null,
-        avatar: firebaseUser.photoURL || null,
-        followersCount: 0,
-        followingCount: 0,
-        postsCount: 0,
-        isSeller: false,
-        stripeCustomerId: null,
-        stripeAccountId: null
-      };
-      
-      // Save to Firestore with Firebase UID
+      // Try to save to Firestore with Firebase UID
       await createUserProfile(userToFirestore(newUser, firebaseUser.uid));
-      
-      return newUser;
+      console.log('Successfully created new user in Firestore');
     } catch (error) {
-      console.error('Error creating new user:', error);
-      throw error;
+      // Log error but don't throw - we can still return the user object
+      // for the application to function even if Firestore save fails
+      console.error('Error saving user to Firestore:', error);
+      
+      // Display a friendly error message
+      setError('Não foi possível salvar o perfil completo do usuário, mas você ainda está conectado.');
     }
+    
+    return newUser;
   };
 
   const signInWithEmailFn = async (params: SignInParams) => {
