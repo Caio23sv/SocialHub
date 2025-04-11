@@ -1,5 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, signInWithGoogle, signOut as firebaseSignOut } from './firebase';
+import { 
+  auth, 
+  signInWithGoogle, 
+  signOut as firebaseSignOut,
+  signUpWithEmailPassword,
+  signInWithEmailPassword,
+  SignUpParams,
+  SignInParams
+} from './firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { 
   getUserProfileByFirebaseUid, 
@@ -7,7 +15,6 @@ import {
   userToFirestore, 
   firestoreToUser 
 } from './firestore';
-import { storage } from '../../server/storage';
 import type { User } from '@shared/schema';
 
 interface AuthContextType {
@@ -15,7 +22,9 @@ interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   isLoading: boolean;
   error: string | null;
-  signIn: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (params: SignInParams) => Promise<void>;
+  signUpWithEmail: (params: SignUpParams) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -62,17 +71,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const createNewUser = async (firebaseUser: FirebaseUser): Promise<User> => {
     try {
-      // Create user in our application's storage
-      const newUser = await storage.createUser({
+      // Create user object for our Firestore database
+      const newUser: User = {
+        id: Date.now(), // Generate a unique ID
         username: firebaseUser.email?.split('@')[0] || `user_${Date.now()}`,
-        password: '', // Use Firebase for auth, so no need for password
+        password: '', // We don't store passwords; Firebase handles auth
         name: firebaseUser.displayName || 'New User',
         bio: null,
         location: null,
         website: null,
-        avatar: firebaseUser.photoURL,
-        isSeller: false
-      });
+        avatar: firebaseUser.photoURL || null,
+        followersCount: 0,
+        followingCount: 0,
+        postsCount: 0,
+        isSeller: false,
+        stripeCustomerId: null,
+        stripeAccountId: null
+      };
       
       // Save to Firestore with Firebase UID
       await createUserProfile(userToFirestore(newUser, firebaseUser.uid));
@@ -84,27 +99,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signIn = async () => {
+  const signInWithEmailFn = async (params: SignInParams) => {
     try {
       setIsLoading(true);
-      await signInWithGoogle();
+      setError(null);
+      await signInWithEmailPassword(params);
       // Auth state observer will handle the rest
     } catch (err) {
       console.error('Sign in error:', err);
       setError((err as Error).message);
+      throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const signOut = async () => {
+  const signUpWithEmailFn = async (params: SignUpParams) => {
     try {
       setIsLoading(true);
+      setError(null);
+      await signUpWithEmailPassword(params);
+      // Auth state observer will handle the rest
+    } catch (err) {
+      console.error('Sign up error:', err);
+      setError((err as Error).message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signInWithGoogleFn = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await signInWithGoogle();
+      // Auth state observer will handle the rest
+    } catch (err) {
+      console.error('Google sign in error:', err);
+      setError((err as Error).message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signOutFn = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
       await firebaseSignOut();
       setUser(null);
     } catch (err) {
       console.error('Sign out error:', err);
       setError((err as Error).message);
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -115,8 +164,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     firebaseUser,
     isLoading,
     error,
-    signIn,
-    signOut
+    signInWithGoogle: signInWithGoogleFn,
+    signInWithEmail: signInWithEmailFn,
+    signUpWithEmail: signUpWithEmailFn,
+    signOut: signOutFn
   };
 
   return (

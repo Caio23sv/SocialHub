@@ -5,6 +5,7 @@ import {
   GoogleAuthProvider, 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
   updateProfile,
   UserCredential,
   User
@@ -76,7 +77,7 @@ export const signInWithEmailPassword = async (params: SignInParams): Promise<Use
 // Helper functions for Google authentication
 export const signInWithGoogle = async () => {
   try {
-    const result = await auth.signInWithPopup(googleProvider);
+    const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (error) {
     console.error("Error during Google sign in:", error);
